@@ -30,12 +30,10 @@ type KickOptions struct {
 
 	NamespaceFlags cmdcore.NamespaceFlags
 	Name           string
-
-	pkgCmdTreeOpts cmdcore.PackageCommandTreeOpts
 }
 
-func NewKickOptions(ui ui.UI, depsFactory cmdcore.DepsFactory, logger logger.Logger, pkgCmdTreeOpts cmdcore.PackageCommandTreeOpts) *KickOptions {
-	return &KickOptions{ui: ui, statusUI: cmdcore.NewStatusLoggingUI(ui), depsFactory: depsFactory, logger: logger, pkgCmdTreeOpts: pkgCmdTreeOpts}
+func NewKickOptions(ui ui.UI, depsFactory cmdcore.DepsFactory, logger logger.Logger) *KickOptions {
+	return &KickOptions{ui: ui, statusUI: cmdcore.NewStatusLoggingUI(ui), depsFactory: depsFactory, logger: logger}
 }
 
 func NewKickCmd(o *KickOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Command {
@@ -43,24 +41,12 @@ func NewKickCmd(o *KickOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Comman
 		Use:   "kick",
 		Short: "Trigger reconciliation for repository",
 		RunE:  func(_ *cobra.Command, _ []string) error { return o.Run() },
-		Example: cmdcore.Examples{
-			cmdcore.Example{"Trigger reconciliation for repository",
-				[]string{"package", "repository", "kick", "-r", "sample-repo"}},
-		}.Description("-r", o.pkgCmdTreeOpts),
-		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
 			cmdcore.PackageManagementCommandsHelpGroup.Key: cmdcore.PackageManagementCommandsHelpGroup.Value},
 	}
 
 	o.NamespaceFlags.Set(cmd, flagsFactory)
-
-	if !o.pkgCmdTreeOpts.PositionalArgs {
-		cmd.Flags().StringVarP(&o.Name, "repository", "r", "", "Set repository name (required)")
-	} else {
-		cmd.Use = "kick REPOSITORY_NAME"
-		cmd.Args = cobra.ExactArgs(1)
-	}
-
+	cmd.Flags().StringVarP(&o.Name, "repository", "r", "", "Set repository name (required)")
 	o.WaitFlags.Set(cmd, flagsFactory, &cmdcore.WaitFlagsOpts{
 		AllowDisableWait: true,
 		DefaultInterval:  1 * time.Second,

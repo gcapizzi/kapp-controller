@@ -49,7 +49,7 @@ func NewPauseCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobr
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Pause(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Pause reconciliation of package install",
-				[]string{"package", "installed", "pause", "-i", "sample-pkg-install"},
+				[]string{"package", "installed", "pause", "-i", "cert-man"},
 			},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
@@ -76,7 +76,7 @@ func NewKickCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobra
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Kick(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Trigger reconciliation of package install",
-				[]string{"package", "installed", "kick", "-i", "sample-pkg-install"},
+				[]string{"package", "installed", "kick", "-i", "cert-man"},
 			},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
@@ -103,9 +103,7 @@ func NewKickCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobra
 
 func (o *PauseOrKickOptions) Pause(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -134,9 +132,7 @@ func (o *PauseOrKickOptions) Pause(args []string) error {
 
 func (o *PauseOrKickOptions) Kick(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {

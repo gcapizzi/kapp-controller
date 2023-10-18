@@ -162,8 +162,6 @@ key2: value2
 
 		require.Contains(t, out, "Fetch succeeded")
 		require.Contains(t, out, "Template succeeded")
-		// Checks that AppStatusDiff works
-		require.Equal(t, 1, strings.Count(out, "Deploying"))
 		require.Contains(t, out, "Deploy succeeded")
 	})
 
@@ -221,8 +219,6 @@ key2: value2
 
 		require.Contains(t, out, "Fetch succeeded")
 		require.Contains(t, out, "Template succeeded")
-		// Checks that AppStatusDiff works
-		require.Equal(t, 1, strings.Count(out, "Deploying"))
 		require.Contains(t, out, "Deploy succeeded")
 	})
 

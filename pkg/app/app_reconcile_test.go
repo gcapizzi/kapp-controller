@@ -20,7 +20,6 @@ import (
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/metrics"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/template"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -233,13 +232,12 @@ func Test_TemplateError_DisplayedInStatus_UsefulErrorMessageProperty(t *testing.
 }
 
 type FakeComponentInfo struct {
-	KCVersion          semver.Version
-	KCVersionCount     *int
-	K8sVersion         semver.Version
-	K8sVersionCount    *int
-	K8sAPIs            []string
-	K8sAPIsCount       *int
-	AppNamespaceStatus v1.NamespaceStatus
+	KCVersion       semver.Version
+	KCVersionCount  *int
+	K8sVersion      semver.Version
+	K8sVersionCount *int
+	K8sAPIs         []string
+	K8sAPIsCount    *int
 }
 
 func (f FakeComponentInfo) KubernetesAPIs() ([]string, error) {
@@ -255,8 +253,4 @@ func (f FakeComponentInfo) KappControllerVersion() (semver.Version, error) {
 func (f FakeComponentInfo) KubernetesVersion(_ string, _ *v1alpha1.AppCluster, _ *metav1.ObjectMeta) (semver.Version, error) {
 	*f.K8sVersionCount++
 	return f.K8sVersion, nil
-}
-
-func (f FakeComponentInfo) NamespaceStatus(_ string) (v1.NamespaceStatus, error) {
-	return f.AppNamespaceStatus, nil
 }

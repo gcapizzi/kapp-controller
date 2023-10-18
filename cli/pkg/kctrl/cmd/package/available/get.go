@@ -49,10 +49,10 @@ func NewGetCmd(o *GetOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Command 
 		RunE:    func(_ *cobra.Command, args []string) error { return o.Run(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Get details about an available package",
-				[]string{"package", "available", "get", "-p", "package.corp.com"},
+				[]string{"package", "available", "get", "-p", "cert-manager.community.tanzu.vmware.com"},
 			},
 			cmdcore.Example{"Get the values schema for a particular version of the package",
-				[]string{"package", "available", "get", "-p", "package.corp.com/1.0.0", "--values-schema"}},
+				[]string{"package", "available", "get", "-p", "cert-manager.community.tanzu.vmware.com/1.0.0", "--values-schema"}},
 		}.Description("-p", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{"table": "",
@@ -77,9 +77,7 @@ func (o *GetOptions) Run(args []string) error {
 	var pkgName, pkgVersion string
 
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -103,7 +101,7 @@ func (o *GetOptions) Run(args []string) error {
 
 	if o.ValuesSchema {
 		if pkgVersion == "" {
-			return fmt.Errorf("Package version is required when --values-schema flag is declared (hint: to specify a particular version use the format: '<package-name>/<version>')")
+			return fmt.Errorf("Package version is required when --values-schema flag is declared (hint: to specify a particular version use the format: '-p <package-name>/<version>')")
 		}
 		return o.showValuesSchema(client, pkgName, pkgVersion)
 	}
@@ -163,10 +161,7 @@ func (o *GetOptions) show(client pkgclient.Interface, pkgName, pkgVersion string
 		}
 
 		if len(o.DefaultValuesFile) > 0 {
-			err := o.saveDefaultValuesFileOutput(pkg)
-			if err != nil {
-				o.ui.ErrorLinef("Default values file output: %v", err)
-			}
+			o.saveDefaultValuesFileOutput(pkg)
 		}
 
 		headers = append(headers, []uitable.Header{
@@ -186,7 +181,7 @@ func (o *GetOptions) show(client pkgclient.Interface, pkgName, pkgVersion string
 		}...)
 	} else {
 		if len(o.DefaultValuesFile) > 0 {
-			return fmt.Errorf("Package version is required when --default-values-file-output flag is declared (hint: to specify a particular version use the format: '<package-name>/<version>')")
+			return fmt.Errorf("Package version is required when --default-values-file-output flag is declared (hint: to specify a particular version use the format: '-p <package-name>/<version>')")
 		}
 		listOpts := metav1.ListOptions{}
 		if len(o.Name) > 0 {
@@ -295,14 +290,15 @@ func (o *GetOptions) showValuesSchema(client pkgclient.Interface, pkgName, pkgVe
 }
 
 func (o *GetOptions) saveDefaultValuesFileOutput(pkg *v1alpha1.Package) error {
+	if len(pkg.Spec.ValuesSchema.OpenAPIv3.Raw) == 0 {
+		o.ui.PrintLinef("Package '%s/%s' does not have any user configurable values in the '%s' namespace", pkg.Spec.RefName, pkg.Spec.Version, o.NamespaceFlags.Name)
+		return nil
+	}
+
 	s := PackageSchema{pkg.Spec.ValuesSchema.OpenAPIv3.Raw}
 	defaultValues, err := s.DefaultValues()
 	if err != nil {
 		return err
-	}
-
-	if len(defaultValues) == 0 {
-		return fmt.Errorf("Package '%s/%s' does not have any user configurable values in the '%s' namespace", pkg.Spec.RefName, pkg.Spec.Version, o.NamespaceFlags.Name)
 	}
 
 	err = os.WriteFile(o.DefaultValuesFile, defaultValues, 0600)

@@ -4,11 +4,8 @@
 package config
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 
 	"sigs.k8s.io/yaml"
@@ -29,7 +26,7 @@ func NewLockConfig() LockConfig {
 }
 
 func NewLockConfigFromFile(path string) (LockConfig, error) {
-	bs, err := os.ReadFile(path)
+	bs, err := ioutil.ReadFile(path)
 	if err != nil {
 		return LockConfig{}, fmt.Errorf("Reading lock config '%s': %s", path, err)
 	}
@@ -54,21 +51,14 @@ func NewLockConfigFromBytes(bs []byte) (LockConfig, error) {
 }
 
 func (c LockConfig) WriteToFile(path string) error {
-	existingBytes, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("Failed to check existing lock file: %w", err)
-	}
-
 	bs, err := c.AsBytes()
 	if err != nil {
 		return fmt.Errorf("Marshaling lock config: %s", err)
 	}
 
-	if bytes.Compare(existingBytes, bs) != 0 {
-		err = os.WriteFile(path, bs, 0600)
-		if err != nil {
-			return fmt.Errorf("Writing lock config: %s", err)
-		}
+	err = ioutil.WriteFile(path, bs, 0600)
+	if err != nil {
+		return fmt.Errorf("Writing lock config: %s", err)
 	}
 
 	return nil

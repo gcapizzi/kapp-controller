@@ -34,9 +34,6 @@ type AppSpecBuilderOpts struct {
 	BundleImage   string
 	Debug         bool
 	BundleTag     string
-
-	BuildYttValidations bool
-	BuildValues         string
 }
 
 func NewAppSpecBuilder(depsFactory cmdcore.DepsFactory, logger logger.Logger, ui cmdcore.AuthoringUI, opts AppSpecBuilderOpts) *AppSpecBuilder {
@@ -73,16 +70,6 @@ func (b *AppSpecBuilder) Build() (kcv1alpha1.AppSpec, error) {
 		Apps: []kcv1alpha1.App{builderApp},
 	}
 
-	if b.opts.BuildValues != "" && len(builderApp.Spec.Template) > 0 {
-		if builderApp.Spec.Template[0].Ytt != nil {
-			builderApp.Spec.Template[0].Ytt.ValuesFrom = append(builderApp.Spec.Template[0].Ytt.ValuesFrom,
-				kcv1alpha1.AppTemplateValuesSource{Path: b.opts.BuildValues})
-		} else if builderApp.Spec.Template[0].HelmTemplate != nil {
-			builderApp.Spec.Template[0].HelmTemplate.ValuesFrom = append(builderApp.Spec.Template[0].HelmTemplate.ValuesFrom,
-				kcv1alpha1.AppTemplateValuesSource{Path: b.opts.BuildValues})
-		}
-	}
-
 	// Make lock output directory if it does not exist
 	tmpImgpkgFolder := LockOutputFolder
 	_, err := os.Stat(tmpImgpkgFolder)
@@ -96,7 +83,7 @@ func (b *AppSpecBuilder) Build() (kcv1alpha1.AppSpec, error) {
 
 	// Build images and resolve references using reconciler
 	tempImgpkgLockPath := filepath.Join(LockOutputFolder, LockOutputFile)
-	cmdRunner := NewReleaseCmdRunner(os.Stdout, b.opts.Debug, tempImgpkgLockPath, b.opts.BuildYttValidations, b.ui)
+	cmdRunner := NewReleaseCmdRunner(os.Stdout, b.opts.Debug, tempImgpkgLockPath, b.ui)
 	reconciler := cmdlocal.NewReconciler(b.depsFactory, cmdRunner, b.logger)
 
 	err = reconciler.Reconcile(buildConfigs, cmdlocal.ReconcileOpts{

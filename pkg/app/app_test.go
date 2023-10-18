@@ -17,7 +17,6 @@ import (
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/kubeconfig"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/reftracker"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/template"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -157,10 +156,9 @@ func Test_ConfigMapRefs_RetrievesNoConfigMapRefs_WhenNonePresent(t *testing.T) {
 }
 
 type FakeComponentInfo struct {
-	KCVersion          semver.Version
-	K8sVersion         semver.Version
-	K8sAPIs            []string
-	AppNamespaceStatus v1.NamespaceStatus
+	KCVersion  semver.Version
+	K8sVersion semver.Version
+	K8sAPIs    []string
 }
 
 func (f FakeComponentInfo) KubernetesAPIs() ([]string, error) {
@@ -173,8 +171,4 @@ func (f FakeComponentInfo) KappControllerVersion() (semver.Version, error) {
 
 func (f FakeComponentInfo) KubernetesVersion(_ string, _ *v1alpha1.AppCluster, _ *metav1.ObjectMeta) (semver.Version, error) {
 	return f.K8sVersion, nil
-}
-
-func (f FakeComponentInfo) NamespaceStatus(_ string) (v1.NamespaceStatus, error) {
-	return f.AppNamespaceStatus, nil
 }

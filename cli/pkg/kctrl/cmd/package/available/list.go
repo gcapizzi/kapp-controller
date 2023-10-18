@@ -57,7 +57,7 @@ func NewListCmd(o *ListOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Comman
 				[]string{"package", "available", "list", "-A"},
 			},
 			cmdcore.Example{"List all available versions of a package",
-				[]string{"package", "available", "list", "-p", "package.corp.com"}},
+				[]string{"package", "available", "list", "-p", "cert-manager.community.tanzu.vmware.com"}},
 		}.Description("-p", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{"table": "",
@@ -82,9 +82,7 @@ func NewListCmd(o *ListOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Comman
 
 func (o *ListOptions) Run(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs && len(args) > 0 {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if o.Summary && o.Name == "" {

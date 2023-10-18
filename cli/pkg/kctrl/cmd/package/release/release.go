@@ -32,8 +32,6 @@ type ReleaseOptions struct {
 	repoOutputLocation    string
 	debug                 bool
 	generateOpenAPISchema bool
-	buildYttValidations   bool
-	buildValues           string
 	tag                   string
 }
 
@@ -63,8 +61,6 @@ func NewReleaseCmd(o *ReleaseOptions) *cobra.Command {
 	cmd.Flags().BoolVar(&o.debug, "debug", false, "Print verbose debug output")
 	cmd.Flags().StringVarP(&o.tag, "tag", "t", "", "Tag pushed with imgpkg bundle (default build-<TIMESTAMP>)")
 	cmd.Flags().BoolVar(&o.generateOpenAPISchema, "openapi-schema", true, "Generates openapi schema for ytt and helm templated files and adds it to generated package")
-	cmd.Flags().BoolVar(&o.buildYttValidations, "build-ytt-validations", true, "Ignore ytt validation errors while releasing packages")
-	cmd.Flags().StringVar(&o.buildValues, "build-values", "", "Path to values file to be used while releasing package")
 
 	return cmd
 }
@@ -115,13 +111,11 @@ func (o *ReleaseOptions) Run() error {
 		return fmt.Errorf("Releasing package: 'package init' was not run successfully. (hint: re-run the 'init' command)")
 	}
 	builderOpts := cmdapprelease.AppSpecBuilderOpts{
-		BuildTemplate:       buildAppSpec.Template,
-		BuildDeploy:         buildAppSpec.Deploy,
-		BuildExport:         pkgBuild.GetExport(),
-		Debug:               o.debug,
-		BundleTag:           o.tag,
-		BuildYttValidations: o.buildYttValidations,
-		BuildValues:         o.buildValues,
+		BuildTemplate: buildAppSpec.Template,
+		BuildDeploy:   buildAppSpec.Deploy,
+		BuildExport:   pkgBuild.GetExport(),
+		Debug:         o.debug,
+		BundleTag:     o.tag,
 	}
 	appSpec, err := cmdapprelease.NewAppSpecBuilder(o.depsFactory, o.logger, o.ui, builderOpts).Build()
 	if err != nil {
