@@ -11,11 +11,11 @@ import (
 
 	"github.com/cppforlife/go-cli-ui/ui"
 	"github.com/spf13/cobra"
+	appinit "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/app/init"
 	cmdapprelease "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/app/release"
 	cmdcore "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/core"
-	cmdpkg "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/package"
+	cmdpkgbuild "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/package/init"
 	"github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/local"
-	buildconfigs "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/local/buildconfigs"
 	"github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/logger"
 	kcv1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/kappctrl/v1alpha1"
 	kcdatav1alpha1 "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apiserver/apis/datapackaging/v1alpha1"
@@ -26,15 +26,11 @@ type ReleaseOptions struct {
 	depsFactory cmdcore.DepsFactory
 	logger      logger.Logger
 
-	pkgVersion            string
-	chdir                 string
-	outputLocation        string
-	repoOutputLocation    string
-	debug                 bool
-	generateOpenAPISchema bool
-	buildYttValidations   bool
-	buildValues           string
-	tag                   string
+	pkgVersion         string
+	chdir              string
+	outputLocation     string
+	repoOutputLocation string
+	debug              bool
 }
 
 const (
@@ -61,10 +57,6 @@ func NewReleaseCmd(o *ReleaseOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.outputLocation, "copy-to", defaultArtifactDir, "Output location for artifacts")
 	cmd.Flags().StringVar(&o.repoOutputLocation, "repo-output", "", "Output location for artifacts in repository bundle format")
 	cmd.Flags().BoolVar(&o.debug, "debug", false, "Print verbose debug output")
-	cmd.Flags().StringVarP(&o.tag, "tag", "t", "", "Tag pushed with imgpkg bundle (default build-<TIMESTAMP>)")
-	cmd.Flags().BoolVar(&o.generateOpenAPISchema, "openapi-schema", true, "Generates openapi schema for ytt and helm templated files and adds it to generated package")
-	cmd.Flags().BoolVar(&o.buildYttValidations, "build-ytt-validations", true, "Ignore ytt validation errors while releasing packages")
-	cmd.Flags().StringVar(&o.buildValues, "build-values", "", "Path to values file to be used while releasing package")
 
 	return cmd
 }
@@ -81,17 +73,17 @@ func (o *ReleaseOptions) Run() error {
 		}
 	}
 
-	pkgBuild, err := buildconfigs.NewPackageBuildFromFile(buildconfigs.PkgBuildFileName)
+	pkgBuild, err := cmdpkgbuild.NewPackageBuildFromFile("package-build.yml")
 	if err != nil {
 		return err
 	}
 
-	pkgConfigs, err := local.NewConfigFromFiles([]string{cmdpkg.PkgResourcesFileName})
+	pkgConfigs, err := local.NewConfigFromFiles([]string{"package-resources.yml"})
 	if err != nil {
 		return err
 	}
 	if len(pkgConfigs.PkgMetadatas) != 1 || len(pkgConfigs.PkgMetadatas) != 1 {
-		return fmt.Errorf("Reading package-resource.yml: file malformed. (hint: delete the file and run `package init` again)")
+		return fmt.Errorf("Reading package-resource.yml: file malformed. (hint: delete the file and run `kctrl package init` again)")
 	}
 
 	o.printPrerequisites()
@@ -103,7 +95,7 @@ func (o *ReleaseOptions) Run() error {
 
 	// To be removed and moved to a question in case we have more config/variations around this
 	if pkgBuild.Spec.Release == nil || len(pkgBuild.Spec.Release) == 0 {
-		pkgBuild.Spec.Release = []buildconfigs.Release{{Resource: &buildconfigs.ReleaseResource{}}}
+		pkgBuild.Spec.Release = []appinit.Release{{Resource: &appinit.ReleaseResource{}}}
 		err = pkgBuild.Save()
 		if err != nil {
 			return err
@@ -112,16 +104,13 @@ func (o *ReleaseOptions) Run() error {
 
 	buildAppSpec := pkgBuild.GetAppSpec()
 	if buildAppSpec == nil {
-		return fmt.Errorf("Releasing package: 'package init' was not run successfully. (hint: re-run the 'init' command)")
+		return fmt.Errorf("Releasing package: `kctrl pkg init` was not run successfully. (hint: re-run the `init` command)")
 	}
 	builderOpts := cmdapprelease.AppSpecBuilderOpts{
-		BuildTemplate:       buildAppSpec.Template,
-		BuildDeploy:         buildAppSpec.Deploy,
-		BuildExport:         pkgBuild.GetExport(),
-		Debug:               o.debug,
-		BundleTag:           o.tag,
-		BuildYttValidations: o.buildYttValidations,
-		BuildValues:         o.buildValues,
+		BuildTemplate: buildAppSpec.Template,
+		BuildDeploy:   buildAppSpec.Deploy,
+		BuildExport:   *pkgBuild.GetExport(),
+		Debug:         o.debug,
 	}
 	appSpec, err := cmdapprelease.NewAppSpecBuilder(o.depsFactory, o.logger, o.ui, builderOpts).Build()
 	if err != nil {
@@ -142,25 +131,27 @@ func (o *ReleaseOptions) Run() error {
 	return nil
 }
 
-func (o *ReleaseOptions) releaseResources(appSpec kcv1alpha1.AppSpec, pkgBuild buildconfigs.PackageBuild,
+func (o *ReleaseOptions) releaseResources(appSpec kcv1alpha1.AppSpec, pkgBuild cmdpkgbuild.PackageBuild,
 	packageTemplate *kcdatav1alpha1.Package, metadataTemplate *kcdatav1alpha1.PackageMetadata) error {
-	var valuesSchema *kcdatav1alpha1.ValuesSchema
-	var err error
-	if o.generateOpenAPISchema {
-		valuesSchema, err = generateValuesSchema(pkgBuild)
-		if err != nil {
-			return err
+	var yttPaths []string
+	for _, templateStage := range pkgBuild.Spec.Template.Spec.App.Spec.Template {
+		if templateStage.Ytt != nil {
+			yttPaths = append(yttPaths, templateStage.Ytt.Paths...)
 		}
+	}
+	valuesSchema, err := NewValuesSchemaGen(yttPaths).Schema()
+	if err != nil {
+		return err
 	}
 
 	artifactWriter := NewArtifactWriter(pkgBuild.Name, o.pkgVersion, packageTemplate, metadataTemplate, o.outputLocation, o.ui)
-	err = artifactWriter.Write(&appSpec, valuesSchema)
+	err = artifactWriter.Write(&appSpec, *valuesSchema)
 	if err != nil {
 		return err
 	}
 
 	if o.repoOutputLocation != "" {
-		err = artifactWriter.WriteRepoOutput(&appSpec, valuesSchema, o.repoOutputLocation)
+		err = artifactWriter.WriteRepoOutput(&appSpec, *valuesSchema, o.repoOutputLocation)
 		if err != nil {
 			return err
 		}
@@ -168,34 +159,20 @@ func (o *ReleaseOptions) releaseResources(appSpec kcv1alpha1.AppSpec, pkgBuild b
 	return nil
 }
 
-func generateValuesSchema(pkgBuild buildconfigs.PackageBuild) (*kcdatav1alpha1.ValuesSchema, error) {
-	if pkgBuild.Spec.Template.Spec.App.Spec.Template != nil {
-		// As of today, PackageInstall values file is applicable only for the first templating step.
-		// https://github.com/carvel-dev/kapp-controller/blob/develop/pkg/packageinstall/app.go#L103
-		templateStage := pkgBuild.Spec.Template.Spec.App.Spec.Template[0]
-		switch {
-		case templateStage.HelmTemplate != nil:
-			return NewHelmValuesSchemaGen(templateStage.HelmTemplate.Path).Schema()
-		case templateStage.Ytt != nil:
-			return NewValuesSchemaGen(templateStage.Ytt.Paths).Schema()
-		}
-	}
-	return nil, nil
-}
-
-func (o *ReleaseOptions) loadExportData(pkgBuild *buildconfigs.PackageBuild) error {
+func (o *ReleaseOptions) loadExportData(pkgBuild *cmdpkgbuild.PackageBuild) error {
 	if len(pkgBuild.Spec.Template.Spec.Export) == 0 {
-		pkgBuild.Spec.Template.Spec.Export = []buildconfigs.Export{
+		pkgBuild.Spec.Template.Spec.Export = []appinit.Export{
 			{
-				ImgpkgBundle: &buildconfigs.ImgpkgBundle{UseKbldImagesLock: true},
+				ImgpkgBundle: &appinit.ImgpkgBundle{UseKbldImagesLock: true},
 			},
 		}
 	}
 	if pkgBuild.Spec.Template.Spec.Export[0].ImgpkgBundle == nil {
-		pkgBuild.Spec.Template.Spec.Export[0].ImgpkgBundle = &buildconfigs.ImgpkgBundle{UseKbldImagesLock: true}
+		pkgBuild.Spec.Template.Spec.Export[0].ImgpkgBundle = &appinit.ImgpkgBundle{UseKbldImagesLock: true}
 	}
 	defaultImgValue := pkgBuild.Spec.Template.Spec.Export[0].ImgpkgBundle.Image
-	o.ui.PrintInformationalText("The bundle created needs to be pushed to an OCI registry. (format: <REGISTRY_URL/REPOSITORY_NAME>) e.g. index.docker.io/k8slt/sample-bundle")
+	o.ui.PrintInformationalText("The bundle created needs to be pushed to an OCI registry." +
+		" Registry URL format: <REGISTRY_URL/REPOSITORY_NAME> e.g. index.docker.io/k8slt/sample-bundle")
 	textOpts := ui.TextOpts{
 		Label:        "Enter the registry URL",
 		Default:      defaultImgValue,
@@ -211,12 +188,12 @@ func (o *ReleaseOptions) loadExportData(pkgBuild *buildconfigs.PackageBuild) err
 
 func (o *ReleaseOptions) printPrerequisites() {
 	o.ui.PrintHeaderText("\nPrerequisites")
-	o.ui.PrintInformationalText("1. Host is authorized to push images to a registry (can be set up by running `docker login`)\n" +
-		"2. `package init` ran successfully.\n\n")
+	o.ui.PrintInformationalText("1. The host must be authorized to push images to a registry (can be set up by running `docker login`)\n" +
+		"2. Package can be released only after `kctrl package init` has been run successfully.\n\n")
 }
 
 func (o *ReleaseOptions) printNextSteps() {
 	o.ui.PrintHeaderText("\nNext steps")
-	o.ui.PrintInformationalText("1. The artifacts generated by the `--repo-output` flag can be bundled into a PackageRepository by using the `package repository release` command.\n" +
-		"2. Generated Package and PackageMetadata manifests can be applied to the cluster directly.\n")
+	o.ui.PrintInformationalText("1. The artifacts generated by the `--repo-output` flag can be bundled into a PackageRepository by using the `kctrl package repo release` command.\n" +
+		"2. Generated Package and PackageMetadata manifests can be applied to the cluster directly.")
 }

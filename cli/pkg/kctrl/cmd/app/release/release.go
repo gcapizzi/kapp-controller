@@ -8,8 +8,8 @@ import (
 
 	"github.com/cppforlife/go-cli-ui/ui"
 	"github.com/spf13/cobra"
+	cmdappinit "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/app/init"
 	cmdcore "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/core"
-	buildconfigs "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/local/buildconfigs"
 	"github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/logger"
 )
 
@@ -22,11 +22,11 @@ type ReleaseOptions struct {
 	chdir          string
 	outputLocation string
 	debug          bool
-	tag            string
 }
 
 const (
 	defaultArtifactDir = "carvel-artifacts"
+	defaultVersion     = "0.0.0+build.%d"
 )
 
 func NewReleaseOptions(ui ui.UI, depsFactory cmdcore.DepsFactory, logger logger.Logger) *ReleaseOptions {
@@ -44,7 +44,6 @@ func NewReleaseCmd(o *ReleaseOptions) *cobra.Command {
 	cmd.Flags().StringVar(&o.chdir, "chdir", "", "Working directory with package-build and other config")
 	cmd.Flags().StringVar(&o.outputLocation, "copy-to", defaultArtifactDir, "Output location for artifacts")
 	cmd.Flags().BoolVar(&o.debug, "debug", false, "Print verbose debug output")
-	cmd.Flags().StringVarP(&o.tag, "tag", "t", "", "Tag pushed with imgpkg bundle (default build-<TIMESTAMP>)")
 
 	return cmd
 }
@@ -59,7 +58,7 @@ func (o *ReleaseOptions) Run() error {
 
 	o.printPrerequisites()
 
-	appBuild, err := buildconfigs.NewAppBuildFromFile(buildconfigs.AppBuildFileName)
+	appBuild, err := cmdappinit.NewAppBuildFromFile(cmdappinit.FileName)
 	if err != nil {
 		return err
 	}
@@ -67,9 +66,8 @@ func (o *ReleaseOptions) Run() error {
 	builderOpts := AppSpecBuilderOpts{
 		BuildTemplate: appBuild.GetAppSpec().Template,
 		BuildDeploy:   appBuild.GetAppSpec().Deploy,
-		BuildExport:   appBuild.GetExport(),
+		BuildExport:   *appBuild.GetExport(),
 		Debug:         o.debug,
-		BundleTag:     o.tag,
 	}
 	_, err = NewAppSpecBuilder(o.depsFactory, o.logger, o.ui, builderOpts).Build()
 	if err != nil {
@@ -83,6 +81,6 @@ func (o *ReleaseOptions) Run() error {
 
 func (o *ReleaseOptions) printPrerequisites() {
 	o.ui.PrintHeaderText("Pre-requisites")
-	o.ui.PrintInformationalText("1. Host is authorized to push images to a registry (can be set up using `docker login`)\n" +
-		"2. `app init` ran successfully.")
+	o.ui.PrintInformationalText("1. The host must be authorized to push images to a registry (can be set up by running `docker login`)\n" +
+		"2. an app can be released with this command only once `kctrl app init` has been run successfully.\n")
 }

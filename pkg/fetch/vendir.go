@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	goexec "os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/kappctrl/v1alpha1"
@@ -38,9 +37,8 @@ type VendirOpts struct {
 	// ConfigHook provides an opportunity to make changes to vendir configuration
 	// before it's given to vendir for execution. If not provided it will default
 	// to the identity function.
-	ConfigHook      func(vendirconf.Config) vendirconf.Config
-	SkipTLSConfig   SkipTLSConfig
-	BaseCacheFolder string
+	ConfigHook    func(vendirconf.Config) vendirconf.Config
+	SkipTLSConfig SkipTLSConfig
 }
 
 // NewVendir returns vendir.
@@ -384,7 +382,7 @@ func (v *Vendir) shouldSkipTLSVerify(url string) bool {
 }
 
 // Run executes vendir command based on given configuration.
-func (v *Vendir) Run(conf []byte, workingDir string, cacheID string) exec.CmdRunResult {
+func (v *Vendir) Run(conf []byte, workingDir string) exec.CmdRunResult {
 	var stdoutBs, stderrBs bytes.Buffer
 
 	cmd := goexec.Command("vendir", "sync", "-f", "-", "--lock-file", os.DevNull)
@@ -392,7 +390,6 @@ func (v *Vendir) Run(conf []byte, workingDir string, cacheID string) exec.CmdRun
 	cmd.Stdin = bytes.NewReader(conf)
 	cmd.Stdout = &stdoutBs
 	cmd.Stderr = &stderrBs
-	cmd.Env = []string{"VENDIR_CACHE_DIR=" + filepath.Join(v.opts.BaseCacheFolder, cacheID)}
 
 	err := v.cmdRunner.Run(cmd)
 
@@ -403,11 +400,6 @@ func (v *Vendir) Run(conf []byte, workingDir string, cacheID string) exec.CmdRun
 	result.AttachErrorf("Fetching resources: %s", err)
 
 	return result
-}
-
-// ClearCache removes all cache entries for the cacheID
-func (v *Vendir) ClearCache(cacheID string) error {
-	return os.RemoveAll(filepath.Join(v.opts.BaseCacheFolder, cacheID))
 }
 
 // ExtractImageRegistry returns the registry portion of a Docker image reference

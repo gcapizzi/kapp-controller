@@ -62,14 +62,6 @@ spec:
       deploy:
       - kapp: {}`
 
-	valuesFile1 := `
-key1: value1
-`
-
-	valuesFile2 := `
-key2: value2
-`
-
 	packageCR1 := fmt.Sprintf(packageCR, packageName1, packageVersion1)
 
 	packageCR2 := fmt.Sprintf(packageCR, packageName2, packageVersion2)
@@ -103,9 +95,7 @@ key2: value2
 	})
 
 	logger.Section("Installing test package", func() {
-		_, err := kappCtrl.RunWithOpts([]string{"package", "installed", "create", "--package-install", pkgiName,
-			"-p", packageMetadataName, "--version", packageVersion1,
-			"--values-file", "-"}, RunOpts{StdinReader: strings.NewReader(valuesFile1)})
+		_, err := kappCtrl.RunWithOpts([]string{"package", "installed", "create", "--package-install", pkgiName, "-p", packageMetadataName, "--version", packageVersion1}, RunOpts{})
 		require.NoError(t, err)
 	})
 
@@ -162,19 +152,17 @@ key2: value2
 
 		require.Contains(t, out, "Fetch succeeded")
 		require.Contains(t, out, "Template succeeded")
-		// Checks that AppStatusDiff works
-		require.Equal(t, 1, strings.Count(out, "Deploying"))
 		require.Contains(t, out, "Deploy succeeded")
 	})
 
 	logger.Section("package installed update", func() {
+
 		_, err := kappCtrl.RunWithOpts([]string{
 			"package", "installed", "update",
 			"--package-install", pkgiName,
 			"-p", packageMetadataName,
 			"--version", packageVersion2,
-			"--values-file", "-",
-		}, RunOpts{StdinReader: strings.NewReader(valuesFile2)})
+		}, RunOpts{})
 		require.NoError(t, err)
 
 		out, err := kappCtrl.RunWithOpts([]string{"package", "installed", "get", "--package-install", pkgiName, "--json"}, RunOpts{})
@@ -221,8 +209,6 @@ key2: value2
 
 		require.Contains(t, out, "Fetch succeeded")
 		require.Contains(t, out, "Template succeeded")
-		// Checks that AppStatusDiff works
-		require.Equal(t, 1, strings.Count(out, "Deploying"))
 		require.Contains(t, out, "Deploy succeeded")
 	})
 
@@ -258,18 +244,5 @@ key2: value2
 			AllowError: true,
 		})
 		require.Contains(t, err.Error(), "not found")
-	})
-
-	logger.Section("package installed update with missing old version", func() {
-		kappCtrl.RunWithOpts([]string{"package", "installed", "create", "--package-install", pkgiName,
-			"-p", packageMetadataName, "--version", packageVersion1,
-			"--values-file", "-"}, RunOpts{StdinReader: strings.NewReader(valuesFile1)})
-
-		kapp.RunWithOpts([]string{"deploy", "-a", appName, "-f", "-"}, RunOpts{
-			StdinReader: strings.NewReader(packageMetadata + "\n" + packageCR2)})
-
-		kappCtrl.RunWithOpts([]string{"package", "installed", "update", "--package-install", pkgiName,
-			"-p", packageMetadataName, "--version", packageVersion2,
-			"--values-file", "-"}, RunOpts{StdinReader: strings.NewReader(valuesFile2)})
 	})
 }

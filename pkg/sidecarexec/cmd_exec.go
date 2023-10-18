@@ -6,7 +6,6 @@ package sidecarexec
 import (
 	"bytes"
 	"fmt"
-	"os"
 	goexec "os/exec"
 
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/exec"
@@ -46,9 +45,8 @@ func (r CmdExec) Run(input CmdInput, output *CmdOutput) error {
 	if len(input.Stdin) > 0 {
 		cmd.Stdin = bytes.NewBuffer(input.Stdin)
 	}
-	cmd.Env = os.Environ()
 	if len(input.Env) > 0 {
-		cmd.Env = append(cmd.Env, input.Env...)
+		cmd.Env = input.Env
 	}
 	if len(input.Dir) > 0 {
 		cmd.Dir = input.Dir

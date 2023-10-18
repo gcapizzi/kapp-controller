@@ -11,7 +11,6 @@ import (
 	uitable "github.com/cppforlife/go-cli-ui/ui/table"
 	"github.com/spf13/cobra"
 	cmdcore "github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/core"
-	"github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/cmd/package/repository/release"
 	"github.com/vmware-tanzu/carvel-kapp-controller/cli/pkg/kctrl/logger"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +42,7 @@ func NewListCmd(o *ListOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Comman
 				[]string{"package", "repository", "list"},
 			},
 			cmdcore.Example{"List package repositories in all namespaces",
-				[]string{"package", "repository", "list", "-A"}},
+				[]string{"package", "repository", "list", "A"}},
 		}.Description("", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{"table": "",
@@ -114,12 +113,7 @@ func NewSourceValue(pkgr v1alpha1.PackageRepository) uitable.Value {
 	if pkgr.Spec.Fetch != nil {
 		switch {
 		case pkgr.Spec.Fetch.ImgpkgBundle != nil:
-			source = fmt.Sprintf("(imgpkg) %s", pkgr.Spec.Fetch.ImgpkgBundle.Image)
-			tag, ok := pkgr.Annotations[release.RepoVersionAnnKey]
-			if ok {
-				source = fmt.Sprintf("(imgpkg) (%s) %s", tag, pkgr.Spec.Fetch.ImgpkgBundle.Image)
-			}
-
+			source = "(imgpkg) " + pkgr.Spec.Fetch.ImgpkgBundle.Image
 			if pkgr.Spec.Fetch.ImgpkgBundle.TagSelection != nil && pkgr.Spec.Fetch.ImgpkgBundle.TagSelection.Semver != nil &&
 				pkgr.Spec.Fetch.ImgpkgBundle.TagSelection.Semver.Constraints != "" {
 				source += fmt.Sprintf(" (%s)", pkgr.Spec.Fetch.ImgpkgBundle.TagSelection.Semver.Constraints)

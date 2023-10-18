@@ -54,8 +54,6 @@ type CreateOrUpdateOptions struct {
 
 	install bool
 
-	DryRun bool
-
 	Name                 string
 	NamespaceFlags       cmdcore.NamespaceFlags
 	SecureNamespaceFlags cmdcore.SecureNamespaceFlags
@@ -75,13 +73,13 @@ func NewCreateCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *
 		RunE:  func(_ *cobra.Command, args []string) error { return o.RunCreate(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Install a package",
-				[]string{"package", "installed", "create", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0"},
+				[]string{"package", "installed", "create", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1"},
 			},
 			cmdcore.Example{"Install package with values file",
-				[]string{"package", "installed", "create", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0", "--values-file", "values.yml"},
+				[]string{"package", "installed", "create", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1", "--values-file", "values.yml"},
 			},
 			cmdcore.Example{"Install package and ask it to use an existing service account",
-				[]string{"package", "installed", "create", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0", "--service-account-name", "existing-sa"}},
+				[]string{"package", "installed", "create", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1", "--service-account-name", "existing-sa"}},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
@@ -102,7 +100,6 @@ func NewCreateCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *
 	cmd.Flags().StringVar(&o.serviceAccountName, "service-account-name", "", "Name of an existing service account used to install underlying package contents, optional")
 	cmd.Flags().StringVar(&o.valuesFile, "values-file", "", "The path to the configuration values file, optional")
 	cmd.Flags().BoolVar(&o.values, "values", true, "Add or keep values supplied to package install, optional")
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Print YAML for resources being applied to the cluster without applying them, optional")
 
 	o.WaitFlags.Set(cmd, flagsFactory, &cmdcore.WaitFlagsOpts{
 		AllowDisableWait: true,
@@ -121,13 +118,13 @@ func NewInstallCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) 
 		RunE:  func(_ *cobra.Command, args []string) error { return o.RunCreate(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Install a package",
-				[]string{"package", "install", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0"},
+				[]string{"package", "install", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1"},
 			},
 			cmdcore.Example{"Install package with values file",
-				[]string{"package", "install", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0", "--values-file", "values.yml"},
+				[]string{"package", "install", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1", "--values-file", "values.yml"},
 			},
 			cmdcore.Example{"Install package and ask it to use an existing service account",
-				[]string{"package", "install", "-i", "sample-pkg-install", "-p", "package.corp.com", "--version", "1.0.0", "--service-account-name", "existing-sa"}},
+				[]string{"package", "install", "-i", "cert-man", "-p", "cert-manager.community.tanzu.vmware.com", "--version", "1.6.1", "--service-account-name", "existing-sa"}},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
@@ -148,7 +145,6 @@ func NewInstallCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) 
 	cmd.Flags().StringVar(&o.serviceAccountName, "service-account-name", "", "Name of an existing service account used to install underlying package contents, optional")
 	cmd.Flags().StringVar(&o.valuesFile, "values-file", "", "The path to the configuration values file, optional")
 	cmd.Flags().BoolVar(&o.values, "values", true, "Add or keep values supplied to package install, optional")
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Print YAML for resources being applied to the cluster without applying them, optional")
 
 	o.WaitFlags.Set(cmd, flagsFactory, &cmdcore.WaitFlagsOpts{
 		AllowDisableWait: true,
@@ -167,12 +163,12 @@ func NewUpdateCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *
 		RunE:  func(_ *cobra.Command, args []string) error { return o.RunUpdate(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Upgrade package install to a newer version",
-				[]string{"package", "installed", "update", "-i", "sample-pkg-install", "--version", "1.0.0"},
+				[]string{"package", "installed", "update", "-i", "cert-man", "--version", "1.6.2"},
 			},
 			cmdcore.Example{"Update package install with new values file",
-				[]string{"package", "installed", "update", "-i", "sample-pkg-install", "--values-file", "values.yml"}},
+				[]string{"package", "installed", "update", "-i", "cert-man", "--values-file", "values.yml"}},
 			cmdcore.Example{"Update package install to stop consuming supplied values",
-				[]string{"package", "installed", "update", "-i", "sample-pkg-install", "--values", "false"}},
+				[]string{"package", "installed", "update", "-i", "cert-man", "--values", "false"}},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
@@ -204,12 +200,8 @@ func NewUpdateCmd(o *CreateOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *
 }
 
 func (o *CreateOrUpdateOptions) RunCreate(args []string) error {
-	o.createdAnnotations = NewCreatedResourceAnnotations(o.Name, o.NamespaceFlags.Name)
-
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -223,14 +215,6 @@ func (o *CreateOrUpdateOptions) RunCreate(args []string) error {
 	err := o.SecureNamespaceFlags.CheckForDisallowedSharedNamespaces(o.NamespaceFlags.Name)
 	if err != nil {
 		return err
-	}
-
-	if o.DryRun {
-		err := PackageInstalledDryRun{o}.PrintResources()
-		if err != nil {
-			return (fmt.Errorf("Generating resource YAML: %s", err))
-		}
-		return nil
 	}
 
 	if len(o.version) == 0 {
@@ -263,6 +247,8 @@ func (o *CreateOrUpdateOptions) RunCreate(args []string) error {
 			return err
 		}
 	}
+
+	o.createdAnnotations = NewCreatedResourceAnnotations(o.Name, o.NamespaceFlags.Name)
 
 	// Fallback to update if resource exists
 	if pkgInstall != nil && err == nil {
@@ -314,9 +300,7 @@ func (o *CreateOrUpdateOptions) create(client kubernetes.Interface, kcClient kcc
 
 func (o *CreateOrUpdateOptions) RunUpdate(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -365,8 +349,10 @@ func (o *CreateOrUpdateOptions) RunUpdate(args []string) error {
 }
 
 func (o CreateOrUpdateOptions) update(client kubernetes.Interface, kcClient kcclient.Interface, pkgInstall *kcpkgv1alpha1.PackageInstall) error {
-	changed := o.version != "" && o.version != pkgInstall.Spec.PackageRef.VersionSelection.Constraints
-	updatedPkgInstall := pkgInstall.DeepCopy()
+	updatedPkgInstall, changed, err := o.preparePackageInstallForUpdate(pkgInstall)
+	if err != nil {
+		return err
+	}
 
 	switch {
 	case changed: // Continue if package install resource is changed
@@ -384,7 +370,7 @@ func (o CreateOrUpdateOptions) update(client kubernetes.Interface, kcClient kccl
 	reconciliationPaused := false
 	if (o.valuesFile != "" && len(pkgInstall.Spec.Values) > 0) ||
 		(len(o.YttOverlayFlags.yttOverlayFiles) > 0 && hasYttOverlays(pkgInstall)) {
-		_, err := o.pauseReconciliation(kcClient)
+		updatedPkgInstall, err = o.pauseReconciliation(kcClient)
 		if err != nil {
 			return err
 		}
@@ -393,20 +379,6 @@ func (o CreateOrUpdateOptions) update(client kubernetes.Interface, kcClient kccl
 			return err
 		}
 		reconciliationPaused = true
-
-		// observedGeneration is updated after pausing reconciliation
-		updatedPkgInstall, err = kcClient.PackagingV1alpha1().PackageInstalls(o.NamespaceFlags.Name).Get(
-			context.Background(), o.Name, metav1.GetOptions{},
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	var err error
-	updatedPkgInstall, err = o.preparePackageInstallForUpdate(updatedPkgInstall)
-	if err != nil {
-		return err
 	}
 
 	isSecretCreated, err := o.createOrUpdateValuesSecret(updatedPkgInstall, client)
@@ -762,18 +734,25 @@ func (o *CreateOrUpdateOptions) createOrUpdateServiceAccount(client kubernetes.I
 	return true, nil
 }
 
-func (o *CreateOrUpdateOptions) preparePackageInstallForUpdate(pkgInstall *kcpkgv1alpha1.PackageInstall) (*kcpkgv1alpha1.PackageInstall, error) {
+func (o *CreateOrUpdateOptions) preparePackageInstallForUpdate(pkgInstall *kcpkgv1alpha1.PackageInstall) (*kcpkgv1alpha1.PackageInstall, bool, error) {
+	var (
+		changed bool
+		err     error
+	)
+
 	updatedPkgInstall := pkgInstall.DeepCopy()
 
 	if updatedPkgInstall.Spec.PackageRef == nil || updatedPkgInstall.Spec.PackageRef.VersionSelection == nil {
-		return nil, fmt.Errorf("Failed to update package '%s' as no existing package reference/version was found in the package install", o.Name)
+		err = fmt.Errorf("Failed to update package '%s' as no existing package reference/version was found in the package install", o.Name)
+		return nil, false, err
 	}
 
 	// If o.PackageName is provided by the user (via --package flag), verify that the package name in PackageInstall matches it.
 	// This will prevent the users from accidentally overwriting an installed package with another package content due to choosing a pre-existing name for the package isntall.
 	// Otherwise if o.PackageName is not provided, fill it from the installed package spec
 	if o.packageName != "" && updatedPkgInstall.Spec.PackageRef.RefName != o.packageName {
-		return nil, fmt.Errorf("Installed package '%s' is already associated with package '%s'", o.Name, updatedPkgInstall.Spec.PackageRef.RefName)
+		err = fmt.Errorf("Installed package '%s' is already associated with package '%s'", o.Name, updatedPkgInstall.Spec.PackageRef.RefName)
+		return nil, false, err
 	}
 	o.packageName = updatedPkgInstall.Spec.PackageRef.RefName
 
@@ -781,13 +760,14 @@ func (o *CreateOrUpdateOptions) preparePackageInstallForUpdate(pkgInstall *kcpkg
 	// Otherwise if o.Version is not provided, fill it from the installed package spec
 	if o.version != "" {
 		if updatedPkgInstall.Spec.PackageRef.VersionSelection.Constraints != o.version {
+			changed = true
 			updatedPkgInstall.Spec.PackageRef.VersionSelection.Constraints = o.version
 		}
 	} else {
 		o.version = updatedPkgInstall.Spec.PackageRef.VersionSelection.Constraints
 	}
 
-	return updatedPkgInstall, nil
+	return updatedPkgInstall, changed, nil
 }
 
 func (o *CreateOrUpdateOptions) createOrUpdateValuesSecret(pkgInstallToUpdate *kcpkgv1alpha1.PackageInstall, client kubernetes.Interface) (bool, error) {
@@ -917,8 +897,6 @@ func (o *CreateOrUpdateOptions) unpauseReconciliation(client kcclient.Interface)
 }
 
 // Waits for the App CR created by the package installation to pick up it's paused status
-// TODO: Have common place for waiting logic and refactor based on
-// https://github.com/carvel-dev/kapp-controller/issues/639
 func (o *CreateOrUpdateOptions) waitForAppPause(client kcclient.Interface) error {
 	if err := wait.Poll(o.WaitFlags.CheckInterval, o.WaitFlags.Timeout, func() (done bool, err error) {
 		appResource, err := client.KappctrlV1alpha1().Apps(o.NamespaceFlags.Name).Get(context.Background(), o.Name, metav1.GetOptions{})
@@ -930,18 +908,6 @@ func (o *CreateOrUpdateOptions) waitForAppPause(client kcclient.Interface) error
 		}
 		if appResource.Status.FriendlyDescription == "Canceled/paused" {
 			return true, nil
-		}
-		pkgi, err := client.PackagingV1alpha1().PackageInstalls(o.NamespaceFlags.Name).Get(context.Background(), o.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if pkgi.Generation != pkgi.Status.ObservedGeneration {
-			return false, nil
-		}
-		for _, condition := range pkgi.Status.Conditions {
-			if condition.Type == "ReconcileFailed" && strings.Contains(condition.Message, "Expected to find at least one version") {
-				return true, nil
-			}
 		}
 		return false, nil
 	}); err != nil {

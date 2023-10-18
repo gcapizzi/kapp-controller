@@ -39,7 +39,7 @@ func (a *App) fetch(dstPath string) (string, exec.CmdRunResult) {
 		return "", result
 	}
 
-	result = vendir.Run(conf, dstPath, a.cacheID())
+	result = vendir.Run(conf, dstPath)
 
 	// retry if error occurs before reporting failure.
 	// This is mainly done to support private registry
@@ -61,7 +61,7 @@ func (a *App) fetch(dstPath string) (string, exec.CmdRunResult) {
 				// no secrets/configmaps have changed, no point in retrying
 				continue
 			}
-			result = vendir.Run(newConf, dstPath, a.cacheID())
+			result = vendir.Run(newConf, dstPath)
 			if result.Error == nil {
 				break
 			}
@@ -77,8 +77,4 @@ func (a *App) fetch(dstPath string) (string, exec.CmdRunResult) {
 	}
 
 	return dstPath, result
-}
-
-func (a *App) cacheID() string {
-	return string(a.pkgRepoUID)
 }

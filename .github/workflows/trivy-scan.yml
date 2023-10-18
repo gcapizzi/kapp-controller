@@ -12,20 +12,14 @@ jobs:
       - name: Get Latest Release Docker Image Sha
         id: latest-sha
         run: |
-          set -eo pipefail
           # Get the latest released docker image sha
-          curl -sL https://api.github.com/repos/carvel-dev/kapp-controller/releases/latest | jq -r '.assets[] | select(.name | contains("release.yml")).browser_download_url' | wget -i -
+          curl -sL https://api.github.com/repos/carvel-dev/kapp-controller/releases/latest | jq -r '.assets[].browser_download_url' | wget -i -
 
-          echo "image=$(yq eval '.spec.template.spec.containers[0].image' release.yml -N -oj | jq 'select(. != null)' -r)"  >> $GITHUB_OUTPUT
-          echo "tag=$(curl -sL https://api.github.com/repos/carvel-dev/kapp-controller/releases/latest | jq -r '.tag_name')" >> $GITHUB_OUTPUT
+          echo ::set-output name=image::$(yq eval '.spec.template.spec.containers[0].image' release.yml -N -j | jq 'select(. != null)' -r)
+          echo ::set-output name=tag::$(curl -sL https://api.github.com/repos/carvel-dev/kapp-controller/releases/latest | jq -r '.tag_name')
       - name: Install Trivy
         run: |
-          # https://aquasecurity.github.io/trivy/v0.18.3/installation/
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+          brew install aquasecurity/trivy/trivy
       - name: Run Trivy
         run: |
           trivy image ${{ steps.latest-sha.outputs.image }}
@@ -44,7 +38,7 @@ jobs:
           echo "SUMMARY=$summary" >> "$GITHUB_ENV"
       - name: Send Slack Notification
         if: success()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.22.0
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         with:
@@ -52,7 +46,7 @@ jobs:
           slack-message: "${{ env.SUMMARY }}"
       - name: Send Failure notification
         if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.22.0
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         with:
@@ -64,11 +58,11 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.5.2
+        uses: actions/checkout@v3.0.2
         with:
           fetch-depth: 0
       - name: Set up Go 1.x
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v3
         with:
           go-version: 1.20.7
       - name: Build the kapp-controller artifacts
@@ -78,19 +72,9 @@ jobs:
 
           # docker image
           docker buildx build -t docker.io/carvel/kapp-controller:${{ github.sha }} .
-
-          # kctrl
-          cd cli
-          ./hack/build.sh
-          mv ./kctrl ../
       - name: Install Trivy
         run: |
-          # https://aquasecurity.github.io/trivy/v0.18.3/installation/
-          sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install trivy
+          brew install aquasecurity/trivy/trivy
       - name: Read dismissed CVEs from Github
         run: |
           set -o pipefail
@@ -112,10 +96,6 @@ jobs:
           # kapp-controller docker image - output in sarif and json
           trivy image --ignore-unfixed --format sarif --output trivy-results-image.sarif "docker.io/carvel/kapp-controller:${{ github.sha }}"
           trivy image --ignore-unfixed --format json --output trivy-results-image.json "docker.io/carvel/kapp-controller:${{ github.sha }}"
-
-          # kctrl binary - output in sarif and json
-          trivy rootfs --ignore-unfixed --format sarif --output trivy-results-kctrl.sarif "kctrl"
-          trivy rootfs --ignore-unfixed --format json --output trivy-results-kctrl.json "kctrl"
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
@@ -125,28 +105,19 @@ jobs:
         run: |
           set -eo pipefail
 
-          summary_binary=$(jq '.Results[]? | select(.Vulnerabilities) | .Vulnerabilities | group_by(.Severity) | map({Severity: .[0].Severity, Count: length}) | tostring' trivy-results.json | tr -d \\ | tr -d '"')
-          summary_image=$(jq '.Results[]? | select(.Vulnerabilities) | .Vulnerabilities | group_by(.Severity) | map({Severity: .[0].Severity, Count: length}) | tostring' trivy-results-image.json | tr -d \\ | tr -d '"')
-          summary_kctrl=$(jq '.Results[]? | select(.Vulnerabilities) | .Vulnerabilities | group_by(.Severity) | map({Severity: .[0].Severity, Count: length}) | tostring' trivy-results-kctrl.json | tr -d \\ | tr -d '"')
+          summary_binary=$(jq '.Results[] | select(.Vulnerabilities) | .Vulnerabilities | group_by(.Severity) | map({Severity: .[0].Severity, Count: length}) | tostring' trivy-results.json | tr -d \\ | tr -d '"')
+          summary_image=$(jq '.Results[] | select(.Vulnerabilities) | .Vulnerabilities | group_by(.Severity) | map({Severity: .[0].Severity, Count: length}) | tostring' trivy-results-image.json | tr -d \\ | tr -d '"')
 
-          summary=$( echo -e "Binary Image Summary:\n$summary_binary\nDocker Image Summary:\n$summary_image\nkctrl Summary:\n$summary_kctrl")
-
-          # Escape '%', '\n' and '\r' to support multiline strings with set-output
-          # https://github.com/orgs/community/discussions/26288
-          summary="${summary//'%'/'%25'}"
-          summary="${summary//$'\n'/'%0A'}"
-          summary="${summary//$'\r'/'%0D'}"
-
-          if [[ -n $summary_binary || -n $summary_image || -n $summary_kctrl ]]
+          summary=$( echo -e "Binary Image Summary:\n$summary_binary\nDocker Image Summary:\n$summary_image")
+          if [[ -n $summary_binary || -n $summary_image ]]
           then
-            echo "Summary: $summary"
-            echo "summary=$summary" >> $GITHUB_OUTPUT
+            echo "::set-output name=summary::$summary"
           else
-            echo "No new Issues were found"
+            echo "No new Issues where found"
           fi
       - name: Send Slack Notification if Scan Ran Successfully
         if: steps.cve-summary.outputs.summary != ''
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.22.0
         with:
           slack-message: "New CVEs found! Check https://github.com/carvel-dev/kapp-controller/security/code-scanning for details \n ${{ steps.cve-summary.outputs.summary }}"
           channel-id: C010XR15VHU
@@ -154,7 +125,7 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: Send Failure notification
         if: failure()
-        uses: slackapi/slack-github-action@v1.23.0
+        uses: slackapi/slack-github-action@v1.22.0
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         with:

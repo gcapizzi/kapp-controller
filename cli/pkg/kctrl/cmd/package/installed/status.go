@@ -40,7 +40,7 @@ func NewStatusCmd(o *StatusOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Co
 		RunE:    func(_ *cobra.Command, args []string) error { return o.Run(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Check status of package install",
-				[]string{"package", "installed", "status", "-i", "sample-pkg-install"},
+				[]string{"package", "installed", "status", "-i", "cert-man"},
 			},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
@@ -61,9 +61,7 @@ func NewStatusCmd(o *StatusOptions, flagsFactory cmdcore.FlagsFactory) *cobra.Co
 
 func (o *StatusOptions) Run(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {

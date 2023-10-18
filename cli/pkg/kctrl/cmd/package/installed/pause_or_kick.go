@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cppforlife/go-cli-ui/ui"
@@ -49,7 +48,7 @@ func NewPauseCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobr
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Pause(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Pause reconciliation of package install",
-				[]string{"package", "installed", "pause", "-i", "sample-pkg-install"},
+				[]string{"package", "installed", "pause", "-i", "cert-man"},
 			},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
@@ -76,7 +75,7 @@ func NewKickCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobra
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Kick(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Trigger reconciliation of package install",
-				[]string{"package", "installed", "kick", "-i", "sample-pkg-install"},
+				[]string{"package", "installed", "kick", "-i", "cert-man"},
 			},
 		}.Description("-i", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
@@ -103,9 +102,7 @@ func NewKickCmd(o *PauseOrKickOptions, flagsFactory cmdcore.FlagsFactory) *cobra
 
 func (o *PauseOrKickOptions) Pause(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -134,9 +131,7 @@ func (o *PauseOrKickOptions) Pause(args []string) error {
 
 func (o *PauseOrKickOptions) Kick(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -239,18 +234,6 @@ func (o *PauseOrKickOptions) waitForAppPause(client kcclient.Interface) error {
 		if appResource.Status.FriendlyDescription == "Canceled/paused" {
 			return true, nil
 		}
-		pkgi, err := client.PackagingV1alpha1().PackageInstalls(o.NamespaceFlags.Name).Get(context.Background(), o.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		if pkgi.Generation != pkgi.Status.ObservedGeneration {
-			return false, nil
-		}
-		for _, condition := range pkgi.Status.Conditions {
-			if condition.Type == "ReconcileFailed" && strings.Contains(condition.Message, "Expected to find at least one version") {
-				return true, nil
-			}
-		}
 		return false, nil
 	}); err != nil {
 		return fmt.Errorf("Waiting for app '%s' in namespace '%s' to be paused: %s", o.Name, o.NamespaceFlags.Name, err)
@@ -294,7 +277,7 @@ func (o *PauseOrKickOptions) waitForPackageInstallReconciliation(client kcclient
 			return false, nil
 		}
 		// Temporary workaround so that we do not pick up stale conditions
-		// To be removed on resolution of: https://github.com/carvel-dev/kapp-controller/issues/639
+		// To be removed on resolution of: https://github.com/vmware-tanzu/carvel-kapp-controller/issues/639
 		// Poll interval to be reverted to 1s post removal
 		if appResource.Generation != appResource.Status.ObservedGeneration {
 			return false, nil

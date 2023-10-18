@@ -3,20 +3,18 @@ module github.com/vmware-tanzu/carvel-kapp-controller/cli
 go 1.20
 
 require (
-	github.com/cppforlife/cobrautil v0.0.0-20221130162803-acdfead391ef
+	github.com/cppforlife/cobrautil v0.0.0-20220907150944-da5ee3a6ab1f
 	github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835
 	github.com/cppforlife/go-cli-ui v0.0.0-20220520125801-e45d9169a663
 	github.com/getkin/kin-openapi v0.81.0
 	github.com/google/go-containerregistry v0.7.0
 	github.com/k14s/difflib v0.0.0-20201117154628-0c031775bf57
 	github.com/mitchellh/go-wordwrap v1.0.1
-	github.com/otiai10/copy v1.0.2
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.5
 	github.com/vmware-tanzu/carvel-kapp-controller v0.39.0
 	github.com/vmware-tanzu/carvel-vendir v0.24.0
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.25.0
 	k8s.io/apiextensions-apiserver v0.25.0
@@ -25,6 +23,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.0
 	sigs.k8s.io/yaml v1.3.0
 )
+
+require github.com/otiai10/copy v1.0.2
 
 require (
 	cloud.google.com/go v0.97.0 // indirect
@@ -92,6 +92,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect

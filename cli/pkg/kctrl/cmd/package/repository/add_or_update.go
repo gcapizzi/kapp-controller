@@ -19,10 +19,8 @@ import (
 	kcpkg "github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/packaging/v1alpha1"
 	kcclient "github.com/vmware-tanzu/carvel-kapp-controller/pkg/client/clientset/versioned"
 	versions "github.com/vmware-tanzu/carvel-vendir/pkg/vendir/versions/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
 type AddOrUpdateOptions struct {
@@ -35,9 +33,6 @@ type AddOrUpdateOptions struct {
 	SecureNamespaceFlags cmdcore.SecureNamespaceFlags
 	Name                 string
 	URL                  string
-	CreateNamespace      bool
-
-	DryRun bool
 
 	CreateRepository bool
 
@@ -57,7 +52,7 @@ func NewAddCmd(o *AddOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *cobra.
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Run(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Add a package repository",
-				[]string{"package", "repository", "add", "-r", "sample-repo", "--url", "projects.repo.com/example:1.0.0"}},
+				[]string{"package", "repository", "add", "-r", "tce", "--url", "projects.registry.vmware.com/tce/main:0.9.1"}},
 		}.Description("-r", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
@@ -76,9 +71,6 @@ func NewAddCmd(o *AddOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *cobra.
 
 	// TODO consider how to support other repository types
 	cmd.Flags().StringVar(&o.URL, "url", "", "OCI registry url for package repository bundle (required)")
-	cmd.Flags().BoolVar(&o.DryRun, "dry-run", false, "Print YAML for resources being applied to the cluster without applying them, optional")
-
-	cmd.Flags().BoolVar(&o.CreateNamespace, "create-namespace", false, "Create the package repository namespace if not present (default false)")
 
 	o.WaitFlags.Set(cmd, flagsFactory, &cmdcore.WaitFlagsOpts{
 		AllowDisableWait: true,
@@ -98,7 +90,7 @@ func NewUpdateCmd(o *AddOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *cob
 		RunE:  func(_ *cobra.Command, args []string) error { return o.Run(args) },
 		Example: cmdcore.Examples{
 			cmdcore.Example{"Update a package repository with a new URL",
-				[]string{"package", "repository", "update", "-r", "sample-repo", "--url", "projects.repo.com/example:1.0.0"}},
+				[]string{"package", "repository", "update", "-r", "tce", "--url", "projects.registry.vmware.com/tce/main:0.9.2"}},
 		}.Description("-r", o.pkgCmdTreeOpts),
 		SilenceUsage: true,
 		Annotations: map[string]string{cmdapp.TTYByDefaultKey: "",
@@ -128,9 +120,7 @@ func NewUpdateCmd(o *AddOrUpdateOptions, flagsFactory cmdcore.FlagsFactory) *cob
 
 func (o *AddOrUpdateOptions) Run(args []string) error {
 	if o.pkgCmdTreeOpts.PositionalArgs {
-		if len(args) > 0 {
-			o.Name = args[0]
-		}
+		o.Name = args[0]
 	}
 
 	if len(o.Name) == 0 {
@@ -146,39 +136,9 @@ func (o *AddOrUpdateOptions) Run(args []string) error {
 		return err
 	}
 
-	if o.DryRun {
-		err = o.dryRun()
-		if err != nil {
-			return (fmt.Errorf("Generating resource YAML: %s", err))
-		}
-		return nil
-	}
-
 	client, err := o.depsFactory.KappCtrlClient()
 	if err != nil {
 		return err
-	}
-
-	if o.CreateNamespace {
-		coreClient, err := o.depsFactory.CoreClient()
-		if err != nil {
-			return err
-		}
-
-		namespace := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: o.NamespaceFlags.Name,
-			},
-		}
-
-		_, err = coreClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return err
-			}
-		} else {
-			o.statusUI.PrintMessagef("Created namespace '%s'", o.NamespaceFlags.Name)
-		}
 	}
 
 	existingRepository, err := client.PackagingV1alpha1().PackageRepositories(o.NamespaceFlags.Name).Get(
@@ -202,6 +162,7 @@ func (o *AddOrUpdateOptions) Run(args []string) error {
 	}
 
 	if o.WaitFlags.Enabled {
+		o.ui.PrintLinef("Waiting for package repository to be updated")
 		err = o.waitForPackageRepositoryInstallation(client)
 	}
 
@@ -289,45 +250,4 @@ func getPackageRepositoryDescription(name string, namespace string) string {
 		description += " cluster"
 	}
 	return description
-}
-
-func (o AddOrUpdateOptions) dryRun() error {
-	packageRepo := kcpkg.PackageRepository{
-		TypeMeta: metav1.TypeMeta{APIVersion: "packaging.carvel.dev/v1alpha1", Kind: "PackageRepository"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      o.Name,
-			Namespace: o.NamespaceFlags.Name,
-		},
-		Spec: kcpkg.PackageRepositorySpec{
-			Fetch: &kcpkg.PackageRepositoryFetch{
-				ImgpkgBundle: &kappctrl.AppFetchImgpkgBundle{Image: o.URL},
-			},
-		},
-	}
-
-	ref, err := name.ParseReference(o.URL, name.WeakValidation)
-	if err != nil {
-		return fmt.Errorf("Parsing OCI registry URL: %s", err)
-	}
-
-	tag := ref.Identifier()
-
-	// the parser function sets the tag to "latest" if not specified, however we want it to be empty
-	if tag == "latest" && !strings.HasSuffix(o.URL, ":"+"latest") {
-		tag = ""
-	}
-
-	if tag == "" {
-		packageRepo.Spec.Fetch.ImgpkgBundle.TagSelection = &versions.VersionSelection{
-			Semver: &versions.VersionSelectionSemver{},
-		}
-	}
-
-	packageRepoYaml, err := yaml.Marshal(packageRepo)
-	if err != nil {
-		return fmt.Errorf("Marshaling PackageRepository YAML: %s", err)
-	}
-	o.ui.PrintBlock(packageRepoYaml)
-
-	return nil
 }

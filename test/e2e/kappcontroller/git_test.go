@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/vmware-tanzu/carvel-kapp-controller/pkg/apis/kappctrl/v1alpha1"
 	"github.com/vmware-tanzu/carvel-kapp-controller/test/e2e"
 	corev1 "k8s.io/api/core/v1"
@@ -65,7 +64,9 @@ spec:
 		var cr v1alpha1.App
 
 		err := yaml.Unmarshal([]byte(out), &cr)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal: %s", err)
+		}
 
 		expectedStatus := v1alpha1.AppStatus{
 			GenericStatus: v1alpha1.GenericStatus{
@@ -94,20 +95,27 @@ spec:
 
 		{
 			// deploy
-			require.Contains(t, cr.Status.Deploy.Stdout, "Wait to:")
+			if !strings.Contains(cr.Status.Deploy.Stdout, "Wait to:") {
+				t.Fatalf("Expected non-empty deploy output")
+			}
 			cr.Status.Deploy.StartedAt = metav1.Time{}
 			cr.Status.Deploy.UpdatedAt = metav1.Time{}
 			cr.Status.Deploy.Stdout = ""
 			cr.Status.Deploy.KappDeployStatus = nil
 
 			// fetch
-			require.Contains(t, cr.Status.Fetch.Stdout, "kind: LockConfig")
+			if !strings.Contains(cr.Status.Fetch.Stdout, "kind: LockConfig") {
+				t.Fatalf("Expected non-empty fetch output: '%s'", cr.Status.Fetch.Stdout)
+			}
 			cr.Status.Fetch.StartedAt = metav1.Time{}
 			cr.Status.Fetch.UpdatedAt = metav1.Time{}
 			cr.Status.Fetch.Stdout = ""
 
 			// inspect
-			require.Contains(t, cr.Status.Inspect.Stdout, "Resources in app 'test-git-https-public.app'")
+			if !strings.Contains(cr.Status.Inspect.Stdout, "Resources in app 'test-git-https-public.app'") {
+				t.Fatalf("Expected non-empty inspect output")
+			}
+
 			cr.Status.Inspect.UpdatedAt = metav1.Time{}
 			cr.Status.Inspect.Stdout = ""
 
@@ -116,7 +124,9 @@ spec:
 			cr.Status.Template.Stderr = ""
 		}
 
-		require.Equal(t, expectedStatus, cr.Status)
+		if !reflect.DeepEqual(expectedStatus, cr.Status) {
+			t.Fatalf("Status is not same: %#v vs %#v", expectedStatus, cr.Status)
+		}
 	})
 }
 
@@ -166,17 +176,16 @@ spec:
 
 	logger.Section("deploy", func() {
 		kapp.RunWithOpts([]string{"deploy", "-f", "-", "-a", name},
-			e2e.RunOpts{
-				IntoNs:       true,
-				StdinReader:  strings.NewReader(yaml1),
-				OnErrKubectl: []string{"get", "app/test-git-ssh-private", "-oyaml"}})
+			e2e.RunOpts{IntoNs: true, StdinReader: strings.NewReader(yaml1)})
 
 		out := kapp.Run([]string{"inspect", "-a", name, "--raw", "--tty=false", "--filter-kind=App"})
 
 		var cr v1alpha1.App
 
 		err := yaml.Unmarshal([]byte(out), &cr)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("Failed to unmarshal: %s", err)
+		}
 
 		expectedStatus := v1alpha1.AppStatus{
 			GenericStatus: v1alpha1.GenericStatus{
@@ -205,20 +214,26 @@ spec:
 
 		{
 			// deploy
-			require.Contains(t, cr.Status.Deploy.Stdout, "Wait to:")
+			if !strings.Contains(cr.Status.Deploy.Stdout, "Wait to:") {
+				t.Fatalf("Expected non-empty deploy output")
+			}
 			cr.Status.Deploy.StartedAt = metav1.Time{}
 			cr.Status.Deploy.UpdatedAt = metav1.Time{}
 			cr.Status.Deploy.Stdout = ""
 			cr.Status.Deploy.KappDeployStatus = nil
 
 			// fetch
-			require.Contains(t, cr.Status.Fetch.Stdout, "kind: LockConfig")
+			if !strings.Contains(cr.Status.Fetch.Stdout, "kind: LockConfig") {
+				t.Fatalf("Expected non-empty fetch output: '%s'", cr.Status.Fetch.Stdout)
+			}
 			cr.Status.Fetch.StartedAt = metav1.Time{}
 			cr.Status.Fetch.UpdatedAt = metav1.Time{}
 			cr.Status.Fetch.Stdout = ""
 
 			// inspect
-			require.Contains(t, cr.Status.Inspect.Stdout, "Resources in app 'test-git-ssh-private.app'")
+			if !strings.Contains(cr.Status.Inspect.Stdout, "Resources in app 'test-git-ssh-private.app'") {
+				t.Fatalf("Expected non-empty inspect output")
+			}
 			cr.Status.Inspect.UpdatedAt = metav1.Time{}
 			cr.Status.Inspect.Stdout = ""
 
@@ -227,7 +242,6 @@ spec:
 			cr.Status.Template.Stderr = ""
 		}
 
-		require.Equal(t, expectedStatus, cr.Status)
 		if !reflect.DeepEqual(expectedStatus, cr.Status) {
 			t.Fatalf("Status is not same: %#v vs %#v", expectedStatus, cr.Status)
 		}
