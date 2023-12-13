@@ -3,15 +3,15 @@ module github.com/vmware-tanzu/carvel-kapp-controller
 go 1.21
 
 require (
-	github.com/fatih/color v1.13.0 // indirect
+	github.com/fatih/color v1.15.0 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/prometheus/client_golang v1.15.1
-	github.com/stretchr/testify v1.8.1
-	github.com/vmware-tanzu/carvel-vendir v0.33.1
+	github.com/stretchr/testify v1.8.4
+	github.com/vmware-tanzu/carvel-vendir v0.36.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/text v0.13.0 // indirect
-	golang.org/x/tools v0.9.1
+	golang.org/x/tools v0.12.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.27.7
 	k8s.io/apimachinery v0.27.7
@@ -30,8 +30,8 @@ require (
 	github.com/cppforlife/go-cli-ui v0.0.0-20220425131040-94f26b16bc14
 	github.com/go-logr/logr v1.2.4
 	github.com/k14s/semver/v4 v4.0.1-0.20210701191048-266d47ac6115
-	github.com/spf13/cobra v1.6.1
-	golang.org/x/sync v0.2.0
+	github.com/spf13/cobra v1.7.0
+	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/component-base v0.27.7
 	k8s.io/klog/v2 v2.90.1
@@ -73,12 +73,12 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0 // indirect
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -108,9 +108,9 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/oauth2 v0.5.0 // indirect
+	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
